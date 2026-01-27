@@ -26,6 +26,9 @@ We collected and reformulated data from previous benchmarks and datasets. All da
 Notably, the team adopted a "inject once, query multiple times" design philosophy—one long text corresponds to multiple questions, significantly improving evaluation efficiency.
 
 ## 🚧 Update
+- [x] (Jan. 26th, 2026)
+    Our paper is accepted by Fourteenth International Conference on Learning Representations (ICLR 2026). We will make some improvement for our current benchmark. 
+      
 - [x] (Sep. 28th, 2025)  
     We publish a new version of our paper. 
 
