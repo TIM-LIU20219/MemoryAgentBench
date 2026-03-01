@@ -94,7 +94,17 @@ class AgentWrapper:
           - AZURE_OPENAI_API_KEY
 
         When using Azure, ensure self.model is the deployment name.
+        
+        Supports qwen models via DashScope when model starts with "qwen".
         """
+        # Check for qwen models (use DashScope)
+        if hasattr(self, 'model') and self.model and self.model.startswith('qwen'):
+            from openai import OpenAI
+            return OpenAI(
+                api_key=os.environ.get('QWEN_API_KEY', os.environ.get('OPENAI_API_KEY', '')),
+                base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+            )
+        
         try:
             azure_endpoint = os.environ.get("AZURE_OPENAI_ENDPOINT")
             if azure_endpoint:

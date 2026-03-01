@@ -1,0 +1,10 @@
+agent_name: Structure_rag_custom_memory_system_qwen
+model: qwen-turbo
+temperature: 0.7
+input_length_limit: 10000000
+buffer_length: 1000
+output_dir: ./outputs/qwen-turbo-custom-memory-system
+
+agent_chunk_size: 4096
+retrieve_num: 10
+api_base_url: http://localhost:8000
