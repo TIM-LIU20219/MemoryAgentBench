@@ -76,6 +76,8 @@ class AgentWrapper:
             self._initialize_zep_agent(agent_config)
         elif self._is_agent_type("rag"):
             self._initialize_rag_agent(agent_config, dataset_config)
+        elif self._is_agent_type("custom_memory"):
+            self._initialize_custom_agent(agent_config, dataset_config)
         else:
             raise NotImplementedError(f"Agent type not supported: {self.agent_name}")
 
@@ -275,6 +277,8 @@ class AgentWrapper:
             return self._handle_memory_agent(message, memorizing, query_id, context_id)
         elif self._is_agent_type("rag"):
             return self._handle_rag_agent(message, memorizing, query_id, context_id)
+        elif self._is_agent_type("custom_memory"):
+            return self._handle_custom_agent(message, memorizing, query_id, context_id)
         else:
             raise NotImplementedError(f"Agent type not supported: {self.agent_name}")
 
@@ -687,6 +691,113 @@ class AgentWrapper:
                 json.dump({"retrieved_context_paragraphs": paragraphs, "response": response}, f, ensure_ascii=False, indent=2)
             
             return output
+    
+    # Custom Memory System Agent (HTTP-based)
+    def _initialize_custom_agent(self, agent_config, dataset_config):
+        """Initialize custom memory-system agent via HTTP API."""
+        import requests
+        
+        self.retrieve_num = agent_config['retrieve_num']
+        self.api_base_url = agent_config.get('api_base_url', 'http://localhost:8000')
+        self.context = ''
+        self.client = self._create_oai_client()
+        self.agent_start_time = time.time()
+        
+        # Test connection
+        try:
+            response = requests.get(f"{self.api_base_url}/health", timeout=5)
+            print(f"[Custom Memory] Connected to {self.api_base_url}: {response.json()}")
+        except Exception as e:
+            print(f"[Custom Memory] Warning: Could not connect to {self.api_base_url}: {e}")
+
+    def _handle_custom_agent(self, message, memorizing, query_id, context_id):
+        """Handle message processing for custom memory-system via HTTP."""
+        import requests
+        
+        user_id = f'context_{context_id}_{self.sub_dataset}'
+        
+        if memorizing:
+            # Add to memory via HTTP API
+            try:
+                response = requests.post(
+                    f"{self.api_base_url}/memory/add_batch",
+                    json={
+                        "messages": [{"role": "user", "content": message}],
+                        "user_id": user_id
+                    },
+                    timeout=30
+                )
+                if response.status_code == 200:
+                    print(f"\n[Custom Memory] Memorized: {response.json()}\n")
+                    return "Memorized"
+                else:
+                    print(f"\n[Custom Memory] Error: {response.status_code} - {response.text}\n")
+                    return f"Error: {response.status_code}"
+            except Exception as e:
+                print(f"\n[Custom Memory] Exception: {e}\n")
+                return f"Error: {e}"
+        else:
+            # Retrieve and generate response
+            try:
+                response = requests.get(
+                    f"{self.api_base_url}/memory/search_compat",
+                    params={
+                        "query": message,
+                        "user_id": user_id,
+                        "limit": self.retrieve_num
+                    },
+                    timeout=30
+                )
+                
+                if response.status_code != 200:
+                    print(f"\n[Custom Memory] Search Error: {response.status_code} - {response.text}\n")
+                    return self._create_standard_response(
+                        "Memory search failed",
+                        0, 0, 0, 0
+                    )
+                
+                data = response.json()
+                memories = data.get("results", [])
+                
+                if not memories:
+                    # No memories found, use vanilla response
+                    memories_str = "No relevant memories found."
+                else:
+                    memories_str = "\n".join(f"- {entry['memory']}" for entry in memories)
+                
+                print(f"\n[Custom Memory] Retrieved {len(memories)} memories\n")
+                
+                # Generate response using LLM
+                system_prompt = f"You are a helpful AI. Answer the question based on query and memories.\n{memories_str}\n"
+                llm_messages = [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": message + "\n\nCurrent Time: " + time.strftime("%Y-%m-%d %H:%M:%S")}
+                ]
+                
+                response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=llm_messages,
+                    temperature=self.temperature,
+                    max_tokens=self.max_tokens
+                )
+                
+                memory_retrieval_length = len(self.tokenizer.encode(memories_str, disallowed_special=()))
+                
+                output = self._create_standard_response(
+                    response.choices[0].message.content,
+                    response.usage.prompt_tokens + memory_retrieval_length,
+                    response.usage.completion_tokens,
+                    0, 0
+                )
+                self.agent_start_time = time.time()
+                return output
+                
+            except Exception as e:
+                print(f"\n[Custom Memory] Exception during query: {e}\n")
+                return self._create_standard_response(
+                    f"Error: {str(e)}",
+                    0, 0, 0, 0
+                )
     
     def _handle_rag_agent(self, message, memorizing, query_id, context_id):
         """Handle message processing for RAG agents."""
