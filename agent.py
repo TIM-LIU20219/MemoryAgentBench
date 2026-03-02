@@ -1,6 +1,6 @@
 import os
 import json
-import torch
+# import torch  # Not actually used
 import tiktoken
 from openai import OpenAI
 from utils.templates import get_template
@@ -11,8 +11,8 @@ import re
 import time
 
 from langchain_core.documents import Document
-from transformers import BitsAndBytesConfig
-from transformers import AutoTokenizer, AutoModelForCausalLM, LlamaConfig
+# from transformers import BitsAndBytesConfig
+# from transformers import AutoTokenizer, AutoModelForCausalLM, LlamaConfig
 
 
 class AgentWrapper:
@@ -74,10 +74,10 @@ class AgentWrapper:
             self._initialize_cognee_agent(agent_config, dataset_config)
         elif self._is_agent_type("zep"):
             self._initialize_zep_agent(agent_config)
-        elif self._is_agent_type("rag"):
-            self._initialize_rag_agent(agent_config, dataset_config)
         elif self._is_agent_type("custom_memory"):
             self._initialize_custom_agent(agent_config, dataset_config)
+        elif self._is_agent_type("rag"):
+            self._initialize_rag_agent(agent_config, dataset_config)
         else:
             raise NotImplementedError(f"Agent type not supported: {self.agent_name}")
 
@@ -285,10 +285,10 @@ class AgentWrapper:
             return self._handle_long_context_agent(message, memorizing)
         elif any(self._is_agent_type(agent_type) for agent_type in ["letta", "cognee", "mem0", "zep"]):
             return self._handle_memory_agent(message, memorizing, query_id, context_id)
-        elif self._is_agent_type("rag"):
-            return self._handle_rag_agent(message, memorizing, query_id, context_id)
         elif self._is_agent_type("custom_memory"):
             return self._handle_custom_agent(message, memorizing, query_id, context_id)
+        elif self._is_agent_type("rag"):
+            return self._handle_rag_agent(message, memorizing, query_id, context_id)
         else:
             raise NotImplementedError(f"Agent type not supported: {self.agent_name}")
 
