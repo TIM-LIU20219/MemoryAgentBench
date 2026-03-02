@@ -708,7 +708,7 @@ class AgentWrapper:
         import requests
         
         self.retrieve_num = agent_config['retrieve_num']
-        self.api_base_url = agent_config.get('api_base_url', 'http://localhost:8000')
+        self.api_base_url = agent_config['api_base_url']  # Required: URL of the memory system API
         self.context = ''
         self.client = self._create_oai_client()
         self.agent_start_time = time.time()
