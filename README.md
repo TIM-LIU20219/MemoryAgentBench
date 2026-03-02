@@ -147,6 +147,80 @@ bash bash_files/eniac/run_memagent_rag_agents_chunksize.sh
 Remember that `hipporag (2.0.0a3)` reuqires `openai==1.58.1`, which may cause some latest OpenAI models could not be used in same environment. 
 
 
+### 🌐 Evaluating Custom/Remote Memory Systems
+
+You can evaluate any third-party memory system that implements the HTTP API protocol via `Structure_rag_custom_memory_system` agent.
+
+#### 1. Install Dependencies
+
+```bash
+# Create environment (CPU-only, no GPU required)
+conda create --name mabench-remote python=3.10
+conda activate mabench-remote
+
+# Install dependencies for remote evaluation
+pip install -r requirements-remote.txt
+
+# Download NLTK data
+python -c "import nltk; nltk.download('punkt_tab')"
+```
+
+#### 2. Start Your Memory System Service
+
+Your memory system must implement the following HTTP API endpoints:
+
+| Endpoint | Method | Parameters |
+|----------|--------|------------|
+| `/memory/add_batch` | POST | `{"messages": [{"role": "user", "content": "..."}], "user_id": "..."}` |
+| `/memory/search_compat` | GET | `query`, `user_id`, `limit` |
+| `/health` | GET | - |
+
+Example (using memory-system):
+```bash
+cd memory-system
+pip install -r requirements.txt
+export QWEN_API_KEY=your_api_key
+uvicorn src.main:app --port 8000
+```
+
+#### 3. Run Evaluation
+
+```bash
+# Set environment variables
+export QWEN_API_KEY=your_api_key
+export HF_ENDPOINT=https://hf-mirror.com  # Use mirror in China
+
+# Run with custom memory system
+python main.py \
+  --agent_config configs/agent_conf/RAG_Agents/qwen-turbo/Structure_rag_custom_memory_system.yaml \
+  --dataset_config configs/data_conf/Long_Range_Understanding/InfBench_sum.yaml \
+  --max_test_queries_ablation 10
+```
+
+#### Agent Configuration
+
+Create your own config file:
+```yaml
+agent_name: Structure_rag_custom_memory_system_qwen
+model: qwen-turbo  # or other models like gpt-4o-mini
+temperature: 0.7
+input_length_limit: 10000000
+buffer_length: 1000
+output_dir: ./outputs/your-custom-agent
+
+agent_chunk_size: 4096
+retrieve_num: 10
+api_base_url: http://localhost:8000  # Your memory system URL
+```
+
+#### Available Datasets
+
+- `configs/data_conf/Accurate_Retrieval/` - Accurate Retrieval tasks
+- `configs/data_conf/Long_Range_Understanding/` - Long Range Understanding
+- `configs/data_conf/Conflict_Resolution/` - Conflict Resolution
+- `configs/data_conf/Test_Time_Learning/` - Test-Time Learning 
+
+
 ### Run LLM-based Metric Evaluation 
 
 You can run an evaluation using the following example python files, you also need to set the configs
